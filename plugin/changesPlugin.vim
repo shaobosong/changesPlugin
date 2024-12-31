@@ -107,4 +107,4 @@ endif
 let &cpo=s:keepcpo
 unlet s:keepcpo
 " Modeline
-" vi:fdm=marker fdl=0
+" vi:fdm=marker fdl=999

@@ -1458,6 +1458,7 @@ fu! changes#EnableChanges(arg, ...) "{{{1
         if a:arg
             call s:UnPlaceSigns(1)
         endif
+        call s:UpdateView()
         verbose call s:GetDiff(a:arg, (a:0 ? a:1 : ''))
     catch
         call changes#WarningMsg()
@@ -1546,6 +1547,8 @@ fu! changes#MoveToNextChange(fwd, cnt) "{{{1
                 \   get(dict, "del", []) +
                 \   get(dict, "cha",  [])
     let lines = sort(lines, 'n')
+    let flines = copy(lines)
+    let lines = filter(lines, 'v:val != flines[index(flines, v:val) - 1] + 1')
     " remove duplicates
     let lines = uniq(lines)
     if mode() =~? '[vs]' && index(lines, cur) == -1
@@ -1780,4 +1783,4 @@ fu! changes#StageHunk(line, revert) "{{{1
     endtry
 endfu
 " Modeline "{{{1
-" vi:fdm=marker fdl=0 ts=4 sw=4 et
+" vi:fdm=marker fdl=999 ts=4 sw=4 et
