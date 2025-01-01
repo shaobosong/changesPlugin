@@ -407,7 +407,7 @@ fu! s:MakeDiff_new(file, type) "{{{1
         if s:Is('win') && &shell =~? 'cmd.exe$'
             let cmd = '( '. cmd. ' )'
         endif
-        if has('job')
+        if get(g:, 'changes_async', '0') && has('job')
             call s:ChangesDoAsync(cmd, fnamemodify(bufname(''), ':p'), a:type, outfile)
         else
             let output = system(cmd)
@@ -780,7 +780,7 @@ fu! s:GetDiff(arg, file) "{{{1
                 " parse diff output
                 call s:MakeDiff_new(a:file, a:arg)
             endif
-            if !has("job")
+            if !get(g:, 'changes_async', '0') || !has("job")
                 call s:AfterDiff(bufnr(''))
                 if a:arg != 3 || s:nodiff
                     let b:changes_view_enabled=1
@@ -1188,7 +1188,7 @@ fu! s:IsUpdateAllowed(empty) "{{{1
     return 1
 endfu
 
-if has("job") "{{{1
+if get(g:, 'changes_async', '0') && has("job") "{{{1
     let s:jobs = {}
 
     function! s:on_exit(channel) dict abort "{{{2
