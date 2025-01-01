@@ -10,6 +10,9 @@
 " TODO: Remove old in-efficient sign handling, once 8.2 or so is stable
 " See :h ChangesPlugin.txt
 
+let s:save_cpo = &cpo
+set cpo&vim
+
 "{{{1script-level variables
 scriptencoding utf-8
 let s:i_path = fnamemodify(expand("<sfile>"), ':p:h'). '/changes_icons/'
@@ -1666,7 +1669,8 @@ fu! changes#InsertSignOnEnter() "{{{1
     " simply check, if the current line has a sign
     " and if not, add one
     unlet! s:changes_last_inserted_sign
-    if !s:IsUpdateAllowed(1) || &cpo =~ '$'
+    if !s:IsUpdateAllowed(1)
+    " if !s:IsUpdateAllowed(1) || &cpo =~ '$'
         " If '$' is inside 'cpo' setting, than the redraw by placing a sign
         " will overwrite the '$' placed from the change command. So return
         " if the user has '$' inside the cpoptions.
@@ -1674,7 +1678,7 @@ fu! changes#InsertSignOnEnter() "{{{1
     endif
     try
         call changes#Init()
-    catch changes:abort
+    catch throw "changes:abort"
     endtry
     let line = line('.')
     let prev = line - 1
@@ -1782,5 +1786,7 @@ fu! changes#StageHunk(line, revert) "{{{1
         call winrestview(_wsv)
     endtry
 endfu
+
+let &cpo = s:save_cpo
 " Modeline "{{{1
 " vi:fdm=marker fdl=999 ts=4 sw=4 et
