@@ -70,10 +70,10 @@ endfu
 " Mappings:  "{{{1
 if !hasmapto("changes#MoveToNextChange")
   if empty(maparg('[h'))
-    map <expr> <silent> [h changes#MoveToNextChange(0, v:count1)
+    map <silent> [h :<C-U>call changes#MoveToNextChange(0, v:count1, v:false)<CR>
   endif
   if empty(maparg(']h'))
-    map <expr> <silent> ]h changes#MoveToNextChange(1, v:count1)
+    map <silent> ]h :<C-U>call changes#MoveToNextChange(1, v:count1, v:false)<CR>
   endif
 endif
 

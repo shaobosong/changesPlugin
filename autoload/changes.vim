@@ -713,16 +713,20 @@ fu! s:Is(os) "{{{1
         return has("unix") || has("macunix")
     endif
 endfu
-fu! s:RemoveConsecutiveLines(fwd, list) "{{{1
+fu! s:RemoveConsecutiveLines(tail, list) "{{{1
     " only keep the start/end of a bunch of successive lines
-    let temp  = -1
-    let lines = a:fwd ? a:list : reverse(a:list)
-    for item in lines
-        if  (a:fwd && temp == item - 1) || (!a:fwd && temp == item + 1)
-            call remove(lines, index(lines, item))
-        endif
-        let temp = item
-    endfor
+    let lines = a:list
+    if len(lines) == 0 || len(lines) == 1
+        return lines
+    endif
+    let cp = copy(lines)
+    if a:tail == v:false
+        " If jump to head, retain the first element from consecutive sequences
+        let lines = filter(lines, 'index(cp, v:val) == 0 || v:val != cp[index(cp, v:val) - 1] + 1')
+    else
+        " If jump to tail, retain the last element from consecutive sequences
+        let lines = filter(lines, 'index(cp, v:val) == len(cp) - 1 || v:val != cp[index(cp, v:val) + 1] - 1')
+    endif
     return lines
 endfu
 fu! s:GetDiff(arg, file) "{{{1
@@ -1537,7 +1541,7 @@ fu! changes#TCV() "{{{1
         endtry
     endif
 endfu
-fu! changes#MoveToNextChange(fwd, cnt) "{{{1
+fu! changes#MoveToNextChange(fwd, cnt, tail) "{{{1
     " Make sure, the hunks are up to date
     let _fen = &fen
     set nofen
@@ -1547,62 +1551,44 @@ fu! changes#MoveToNextChange(fwd, cnt) "{{{1
     let cur = line('.')
     let dict = get(b:, "diffhl", {})
     let lines = get(dict, "add", []) +
-                \   get(dict, "del", []) +
+                \   s:RemoveConsecutiveLines(v:false, get(dict, "del", [])) +
                 \   get(dict, "cha",  [])
-    let lines = sort(lines, 'n')
-    let flines = copy(lines)
-    let lines = filter(lines, 'v:val != flines[index(flines, v:val) - 1] + 1')
-    " remove duplicates
-    let lines = uniq(lines)
-    if mode() =~? '[vs]' && index(lines, cur) == -1
-        " in visual mode and not within a hunk!
-        return "\<esc>"
-    endif
+    " only keep the start/end of a bunch of " successive lines
+    let lines = s:RemoveConsecutiveLines(a:tail, uniq(sort(lines, 'n')))
 
-    let suffix = '0' " move to start of hunk
-    let cnt = a:cnt-1
-
-    " only keep the start/end of a bunch of successive lines
-    let lines = s:RemoveConsecutiveLines(1, copy(lines)) +
-                \ s:RemoveConsecutiveLines(0, copy(lines))
-    " sort again...
-    let lines = sort(lines, 'n')
+    " if mode() =~? '[vs]' && index(lines, cur) == -1
+    "     " in visual mode and not within a hunk!
+    "     return
+    " endif
 
     if empty(lines)
         echomsg   "There are no ". (a:fwd ? "next" : "previous").
                     \ " differences!"
-        return "\<esc>"
+        return
     elseif (a:fwd && max(lines) <= cur) ||
                 \ (!a:fwd && min(lines) >= cur)
         echomsg   "There are no more ". (a:fwd ? "next" : "previous").
                     \ " differences!"
-        return "\<esc>"
+        return
     endif
     if a:fwd
         call filter(lines, 'v:val > cur')
         if empty(lines)
-            return "\<esc>"
+            return
         endif
     else
         call filter(lines, 'v:val < cur')
         if empty(lines)
-            return "\<esc>"
+            return
         else
             call reverse(lines)
         endif
     endif
-    if cnt > len(lines)
-        let cnt=length(lines)
-    endif
 
-    " Cancel the user given count
-    " otherwise the count would be multiplied with
-    " the given line number
-    let prefix=(cnt > 0 ? "\<esc>" : "")
-    return prefix.lines[cnt]. "G".suffix
+    execute 'normal! '. lines[min([a:cnt, len(lines)]) - 1] .'G0'
 endfu
 fu! changes#CurrentHunk() "{{{1
-    if changes#MoveToNextChange(0,1) == "\<Esc>"
+    if changes#MoveToNextChange(0,1,v:false) == "\<Esc>"
         " outside of a hunk
         return "\<Esc>"
     else
@@ -1669,8 +1655,8 @@ fu! changes#InsertSignOnEnter() "{{{1
     " simply check, if the current line has a sign
     " and if not, add one
     unlet! s:changes_last_inserted_sign
-    if !s:IsUpdateAllowed(1)
-    " if !s:IsUpdateAllowed(1) || &cpo =~ '$'
+    " if !s:IsUpdateAllowed(1)
+    if !s:IsUpdateAllowed(1) || &cpo =~ '$'
         " If '$' is inside 'cpo' setting, than the redraw by placing a sign
         " will overwrite the '$' placed from the change command. So return
         " if the user has '$' inside the cpoptions.
